@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Compass } from "lucide-react";
 
@@ -30,12 +31,14 @@ const Hero = () => {
             </div>
 
             <div className="animate-fade-up-delay-2 flex flex-col sm:flex-row gap-4 pt-4">
-              <Button variant="hero" size="heroLg">
-                Get started in 3 minutes
-                <ArrowRight className="w-4 h-4" />
+              <Button variant="hero" size="heroLg" asChild>
+                <Link to="/signup">
+                  Get started in 3 minutes
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
               </Button>
-              <Button variant="heroOutline" size="heroLg">
-                View guided journey
+              <Button variant="heroOutline" size="heroLg" asChild>
+                <a href="#journey">View guided journey</a>
               </Button>
             </div>
           </div>
