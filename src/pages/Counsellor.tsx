@@ -1,18 +1,22 @@
 import { useState } from 'react';
-import { useAuth, OnboardingData } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { universities, University } from '@/data/universities';
+import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
+import { toast } from '@/hooks/use-toast';
 import { 
   ArrowLeft, 
   Send, 
   Sparkles,
-  GraduationCap,
   Target,
   Shield,
   Plus,
-  Check
+  Check,
+  Volume2,
+  VolumeX,
+  Loader2
 } from 'lucide-react';
 
 interface Message {
@@ -20,7 +24,11 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   universities?: University[];
-  action?: 'shortlist' | 'lock';
+}
+
+interface AIAction {
+  action: 'shortlist' | 'lock' | 'none';
+  universityName?: string;
 }
 
 const Counsellor = () => {
@@ -28,10 +36,14 @@ const Counsellor = () => {
     user, 
     onboardingData, 
     shortlistedUniversities,
+    applicationTasks,
+    currentStage,
     shortlistUniversity,
-    lockUniversity
+    lockUniversity,
+    getLockedUniversity
   } = useAuth();
   const navigate = useNavigate();
+  const { speak, stop, isSpeaking } = useSpeechSynthesis();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,147 +54,97 @@ const Counsellor = () => {
   }
 
   const isShortlisted = (id: string) => shortlistedUniversities.some(u => u.id === id);
+  const lockedUni = getLockedUniversity();
 
-  const generateAIResponse = (userMessage: string): Message => {
-    const lowerMessage = userMessage.toLowerCase();
-    
-    // Profile analysis
-    if (lowerMessage.includes('profile') || lowerMessage.includes('strength') || lowerMessage.includes('analyze')) {
-      return createProfileAnalysis(onboardingData);
-    }
-    
-    // University recommendations
-    if (lowerMessage.includes('recommend') || lowerMessage.includes('suggest') || lowerMessage.includes('university') || lowerMessage.includes('universities')) {
-      return createRecommendations(onboardingData);
-    }
+  const buildContext = () => ({
+    name: user.name,
+    stage: currentStage,
+    onboarding: {
+      academicBackground: onboardingData.academicBackground,
+      studyGoal: onboardingData.studyGoal,
+      budget: onboardingData.budget,
+      exams: onboardingData.exams,
+      sopReadiness: onboardingData.sopReadiness,
+    },
+    shortlistedCount: shortlistedUniversities.length,
+    shortlistedUniversities: shortlistedUniversities.map(u => u.name),
+    lockedUniversity: lockedUni?.name || null,
+    taskProgress: {
+      completed: applicationTasks.filter(t => t.completed).length,
+      total: applicationTasks.length,
+    },
+  });
 
-    // Dream universities
-    if (lowerMessage.includes('dream')) {
-      const dreamUnis = universities.filter(u => u.tier === 'dream');
-      return {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: `Here are the **Dream Universities** that match your profile. These are highly competitive but worth aiming for if you have strong credentials:\n\n*Note: These universities have very low acceptance rates (3-18%). I recommend having backup options.*`,
-        universities: dreamUnis.slice(0, 4),
-      };
-    }
+  const findUniversityByName = (name: string): University | undefined => {
+    const normalizedName = name.toLowerCase().trim();
+    return universities.find(u => 
+      u.name.toLowerCase().includes(normalizedName) ||
+      normalizedName.includes(u.name.toLowerCase())
+    );
+  };
 
-    // Target universities
-    if (lowerMessage.includes('target') || lowerMessage.includes('realistic')) {
-      const targetUnis = universities.filter(u => u.tier === 'target');
-      return {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: `Here are your **Target Universities** - realistic options where you have a good chance of admission based on your profile:`,
-        universities: targetUnis.slice(0, 4),
-      };
-    }
+  const executeAction = (action: AIAction) => {
+    if (action.action === 'none' || !action.universityName) return;
 
-    // Safe universities
-    if (lowerMessage.includes('safe') || lowerMessage.includes('backup')) {
-      const safeUnis = universities.filter(u => u.tier === 'safe');
-      return {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: `Here are your **Safe Universities** - strong programs where admission is more likely:`,
-        universities: safeUnis.slice(0, 4),
-      };
+    const uni = findUniversityByName(action.universityName);
+    if (!uni) {
+      toast({
+        title: "University not found",
+        description: `Couldn't find "${action.universityName}" in the database.`,
+        variant: "destructive",
+      });
+      return;
     }
 
-    // Shortlist action
-    if (lowerMessage.includes('shortlist') || lowerMessage.includes('add to list')) {
-      return {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: `I can help you shortlist universities. You currently have **${shortlistedUniversities.length} universities** shortlisted.\n\nWould you like me to show you:\n- Dream universities (ambitious)\n- Target universities (realistic)\n- Safe universities (backup)\n\nOr you can visit the **Universities** page to browse and shortlist directly.`,
-      };
-    }
-
-    // Lock action
-    if (lowerMessage.includes('lock') || lowerMessage.includes('commit') || lowerMessage.includes('focus')) {
-      if (shortlistedUniversities.length === 0) {
-        return {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: `You haven't shortlisted any universities yet. I recommend shortlisting at least 3-5 universities before locking one as your primary target.\n\nWould you like me to show you some recommendations based on your profile?`,
-        };
+    if (action.action === 'shortlist') {
+      if (!isShortlisted(uni.id)) {
+        shortlistUniversity(uni);
+        toast({
+          title: "University shortlisted",
+          description: `${uni.name} has been added to your shortlist.`,
+        });
       }
-      return {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: `You have ${shortlistedUniversities.length} universities shortlisted. Locking a university means you'll focus your application efforts on it.\n\nVisit the **Universities** page to lock your primary target. Once locked, I'll generate a personalized application checklist for you.`,
-      };
+    } else if (action.action === 'lock') {
+      if (!isShortlisted(uni.id)) {
+        shortlistUniversity(uni);
+      }
+      lockUniversity(uni.id);
+      toast({
+        title: "University locked",
+        description: `${uni.name} is now your primary target. Application tasks created.`,
+      });
     }
-
-    // Default response
-    return {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: `I'm your AI study abroad counsellor. I can help you with:\n\n• **Analyze your profile** - Understand your strengths and gaps\n• **Recommend universities** - Dream, Target, and Safe options\n• **Shortlist universities** - Build your application list\n• **Lock a target** - Focus on one university for execution\n\nWhat would you like to explore?`,
-    };
   };
 
-  const createProfileAnalysis = (data: OnboardingData): Message => {
-    const strengths: string[] = [];
-    const gaps: string[] = [];
+  const extractUniversitiesFromContent = (content: string): University[] => {
+    const mentioned: University[] = [];
+    const patterns = [
+      /\*\*([^*]+)\*\*\s*\((dream|target|safe)\)/gi,
+      /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+University|\s+Institute|\s+College)?)/g,
+    ];
 
-    // Analyze GPA
-    if (data.academicBackground.gpa) {
-      strengths.push(`Academic background in ${data.academicBackground.field}`);
+    // Match formatted universities first
+    let match;
+    while ((match = patterns[0].exec(content)) !== null) {
+      const uni = findUniversityByName(match[1]);
+      if (uni && !mentioned.find(m => m.id === uni.id)) {
+        mentioned.push(uni);
+      }
     }
 
-    // Analyze exams
-    if (data.exams.gre) {
-      strengths.push(`GRE score: ${data.exams.gre}`);
-    } else {
-      gaps.push('No GRE score submitted');
-    }
+    // If we found formatted ones, return those
+    if (mentioned.length > 0) return mentioned.slice(0, 4);
 
-    if (data.exams.toefl || data.exams.ielts) {
-      strengths.push(`English proficiency: ${data.exams.toefl ? `TOEFL ${data.exams.toefl}` : `IELTS ${data.exams.ielts}`}`);
-    } else {
-      gaps.push('No English proficiency test scores');
-    }
+    // Otherwise try to find any university mentions
+    universities.forEach(uni => {
+      if (content.toLowerCase().includes(uni.name.toLowerCase())) {
+        if (!mentioned.find(m => m.id === uni.id)) {
+          mentioned.push(uni);
+        }
+      }
+    });
 
-    // Analyze SOP
-    if (['refining', 'ready'].includes(data.sopReadiness)) {
-      strengths.push('SOP preparation is advanced');
-    } else {
-      gaps.push('SOP still needs work');
-    }
-
-    // Budget analysis
-    const budgetNote = data.budget.needScholarship 
-      ? 'You need scholarship support - we\'ll prioritize universities with funding'
-      : 'Self-funded - more flexibility in university choices';
-
-    return {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: `## Profile Analysis\n\n**Strengths:**\n${strengths.map(s => `✓ ${s}`).join('\n')}\n\n**Areas to Improve:**\n${gaps.map(g => `○ ${g}`).join('\n')}\n\n**Budget:** ${budgetNote}\n\n**Target:** ${data.studyGoal.degree} in ${data.studyGoal.targetField}\n**Countries:** ${data.studyGoal.preferredCountries.join(', ')}\n\nWould you like me to recommend universities based on this profile?`,
-    };
-  };
-
-  const createRecommendations = (data: OnboardingData): Message => {
-    const preferredCountries = data.studyGoal.preferredCountries;
-    
-    let recommendations = universities;
-    if (preferredCountries.length > 0) {
-      recommendations = universities.filter(u => preferredCountries.includes(u.country));
-    }
-
-    const dream = recommendations.filter(u => u.tier === 'dream').slice(0, 2);
-    const target = recommendations.filter(u => u.tier === 'target').slice(0, 2);
-    const safe = recommendations.filter(u => u.tier === 'safe').slice(0, 2);
-
-    const allRecs = [...dream, ...target, ...safe];
-
-    return {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: `Based on your profile studying **${data.studyGoal.targetField}** for a **${data.studyGoal.degree}**, here are my recommendations:\n\n🎯 **Dream** (ambitious but possible)\n💼 **Target** (realistic match)\n🛡️ **Safe** (strong backup)\n\nClick "Add to shortlist" to save universities you're interested in:`,
-      universities: allRecs,
-    };
+    return mentioned.slice(0, 4);
   };
 
   const handleSend = async () => {
@@ -198,17 +160,73 @@ const Counsellor = () => {
     setInput('');
     setIsLoading(true);
 
-    // Simulate AI thinking
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(input);
-      setMessages(prev => [...prev, aiResponse]);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-counsellor`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            message: input,
+            context: buildContext(),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get AI response');
+      }
+
+      const data = await response.json();
+      
+      // Extract mentioned universities from response
+      const mentionedUniversities = extractUniversitiesFromContent(data.content);
+
+      const aiMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: data.content,
+        universities: mentionedUniversities.length > 0 ? mentionedUniversities : undefined,
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+
+      // Execute any actions
+      if (data.action && data.action.action !== 'none') {
+        executeAction(data.action);
+      }
+    } catch (error) {
+      console.error('AI error:', error);
+      const errorMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: error instanceof Error ? error.message : 'Something went wrong. Please try again.',
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
   };
 
   const handleShortlist = (university: University) => {
     if (!isShortlisted(university.id)) {
       shortlistUniversity(university);
+      toast({
+        title: "Added to shortlist",
+        description: `${university.name} added to your list.`,
+      });
+    }
+  };
+
+  const handleSpeak = (content: string) => {
+    if (isSpeaking) {
+      stop();
+    } else {
+      speak(content);
     }
   };
 
@@ -217,6 +235,15 @@ const Counsellor = () => {
       case 'dream': return <Sparkles className="w-4 h-4 text-amber-500" />;
       case 'target': return <Target className="w-4 h-4 text-primary" />;
       case 'safe': return <Shield className="w-4 h-4 text-emerald-500" />;
+    }
+  };
+
+  const getStageLabel = () => {
+    switch (currentStage) {
+      case 2: return 'Discovery Phase';
+      case 3: return `Focused on ${lockedUni?.name || 'locked university'}`;
+      case 4: return 'Application Execution';
+      default: return 'Getting Started';
     }
   };
 
@@ -237,14 +264,17 @@ const Counsellor = () => {
             <div className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-medium text-foreground">AI Counsellor</span>
+            <div className="text-center">
+              <span className="font-medium text-foreground block text-sm">AI Counsellor</span>
+              <span className="text-xs text-muted-foreground">{getStageLabel()}</span>
+            </div>
           </div>
 
           <button
             onClick={() => navigate('/universities')}
             className="text-sm text-primary hover:underline"
           >
-            View Universities
+            Universities ({shortlistedUniversities.length})
           </button>
         </div>
       </header>
@@ -260,22 +290,25 @@ const Counsellor = () => {
               <h2 className="font-serif text-2xl font-semibold text-foreground mb-2">
                 Hello, {user.name.split(' ')[0]}!
               </h2>
-              <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                I'm your AI study abroad counsellor. I understand your profile and can help you make informed decisions.
+              <p className="text-muted-foreground mb-2 max-w-md mx-auto">
+                I know your profile. Ask me about universities, your gaps, or what to do next.
+              </p>
+              <p className="text-xs text-muted-foreground mb-8">
+                Stage {currentStage}: {getStageLabel()}
               </p>
 
               <div className="grid sm:grid-cols-2 gap-3 max-w-lg mx-auto">
                 {[
-                  'Analyze my profile',
-                  'Recommend universities',
-                  'Show dream universities',
-                  'Show safe options',
+                  'What are my profile gaps?',
+                  'Recommend universities for me',
+                  'What should I do next?',
+                  currentStage >= 3 ? 'How are my tasks progressing?' : 'Help me shortlist universities',
                 ].map((suggestion) => (
                   <button
                     key={suggestion}
                     onClick={() => {
                       setInput(suggestion);
-                      setTimeout(() => handleSend(), 100);
+                      setTimeout(handleSend, 50);
                     }}
                     className="p-3 text-sm text-left border border-border rounded-lg hover:bg-muted/50 transition-colors"
                   >
@@ -293,8 +326,28 @@ const Counsellor = () => {
                       {message.content}
                     </div>
 
+                    {/* Speak button for AI messages */}
+                    {message.role === 'assistant' && (
+                      <button
+                        onClick={() => handleSpeak(message.content)}
+                        className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {isSpeaking ? (
+                          <>
+                            <VolumeX className="w-3.5 h-3.5" />
+                            Stop
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="w-3.5 h-3.5" />
+                            Listen
+                          </>
+                        )}
+                      </button>
+                    )}
+
                     {/* University Cards */}
-                    {message.universities && (
+                    {message.universities && message.universities.length > 0 && (
                       <div className="mt-4 space-y-3">
                         {message.universities.map((uni) => (
                           <div 
@@ -303,13 +356,13 @@ const Counsellor = () => {
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
+                              <div className="flex items-center gap-2 mb-1">
                                   {getTierIcon(uni.tier)}
                                   <span className="text-xs uppercase tracking-wide text-muted-foreground">
                                     {uni.tier}
                                   </span>
                                 </div>
-                                <h4 className="font-medium text-foreground">{uni.name}</h4>
+                                <h4 className="font-medium">{uni.name}</h4>
                                 <p className="text-sm text-muted-foreground">
                                   {uni.country} • Rank #{uni.ranking} • {uni.acceptanceRate} acceptance
                                 </p>
@@ -346,9 +399,8 @@ const Counsellor = () => {
                 <div className="flex justify-start">
                   <div className="bg-muted rounded-2xl px-5 py-4">
                     <div className="flex items-center gap-2 text-muted-foreground">
-                      <div className="w-2 h-2 bg-current rounded-full animate-pulse" />
-                      <div className="w-2 h-2 bg-current rounded-full animate-pulse delay-100" />
-                      <div className="w-2 h-2 bg-current rounded-full animate-pulse delay-200" />
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Analyzing your profile...</span>
                     </div>
                   </div>
                 </div>
@@ -365,9 +417,10 @@ const Counsellor = () => {
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Ask about universities, profile analysis, or next steps..."
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+              placeholder="Ask about universities, gaps, or next steps..."
               className="flex-1 h-12"
+              disabled={isLoading}
             />
             <Button
               variant="hero"
@@ -376,7 +429,11 @@ const Counsellor = () => {
               disabled={!input.trim() || isLoading}
               className="h-12 w-12 rounded-xl"
             >
-              <Send className="w-5 h-5" />
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Send className="w-5 h-5" />
+              )}
             </Button>
           </div>
         </div>
