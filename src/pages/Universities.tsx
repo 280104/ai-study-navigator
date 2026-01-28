@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { universities, University, getAllCountries, getAllPrograms } from '@/data/universities';
 import { 
   ArrowLeft, 
+  ArrowRight,
   Search,
   Sparkles,
   Target,
@@ -15,7 +16,8 @@ import {
   Lock,
   Unlock,
   X,
-  Filter
+  Filter,
+  Home
 } from 'lucide-react';
 
 const Universities = () => {
@@ -103,8 +105,20 @@ const Universities = () => {
     }
   };
 
+  const getPrimaryAction = () => {
+    if (lockedUniversity) {
+      return { label: 'Prepare Applications', route: '/application' };
+    }
+    if (shortlistedUniversities.length >= 3) {
+      return { label: 'Lock a University', route: '' }; // Action on same page
+    }
+    return { label: 'Ask AI for Recommendations', route: '/counsellor' };
+  };
+
+  const primaryAction = getPrimaryAction();
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -118,16 +132,47 @@ const Universities = () => {
 
           <h1 className="font-serif text-lg font-medium text-foreground">Universities</h1>
 
-          <button
-            onClick={() => navigate('/counsellor')}
-            className="text-sm text-primary hover:underline"
-          >
-            AI Counsellor
-          </button>
+          {primaryAction.route && (
+            <Button
+              variant="hero"
+              size="sm"
+              onClick={() => navigate(primaryAction.route)}
+            >
+              {primaryAction.label}
+            </Button>
+          )}
+          {!primaryAction.route && (
+            <button
+              onClick={() => navigate('/counsellor')}
+              className="text-sm text-primary hover:underline"
+            >
+              AI Counsellor
+            </button>
+          )}
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="flex-1 max-w-6xl mx-auto px-6 py-8">
+        {/* Center Primary CTA */}
+        {!lockedUniversity && shortlistedUniversities.length < 3 && (
+          <div className="text-center mb-8 p-8 rounded-2xl border border-border bg-card">
+            <h2 className="font-serif text-xl font-semibold text-foreground mb-2">
+              Build Your Shortlist
+            </h2>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              Add at least 3 universities to your shortlist, then lock one to start your focused application.
+            </p>
+            <Button
+              variant="hero"
+              size="heroLg"
+              onClick={() => navigate('/counsellor')}
+            >
+              Get AI Recommendations
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </div>
+        )}
+
         {/* Shortlist Summary */}
         {shortlistedUniversities.length > 0 && (
           <div className="mb-8 p-6 rounded-2xl border border-border bg-card">
@@ -155,17 +200,27 @@ const Universities = () => {
                     </div>
                   </div>
                   <Button
-                    variant="outline"
+                    variant="hero"
                     size="sm"
                     onClick={() => navigate('/application')}
                   >
-                    View Application Tasks
+                    Prepare Applications
+                    <ArrowRight className="w-4 h-4 ml-1" />
                   </Button>
+                </div>
+              </div>
+            ) : shortlistedUniversities.length >= 3 ? (
+              <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                <div className="flex items-center justify-between">
+                  <p className="text-foreground">
+                    Ready to commit! Lock a university to start your application.
+                  </p>
+                  <Sparkles className="w-5 h-5 text-amber-500" />
                 </div>
               </div>
             ) : (
               <p className="text-muted-foreground text-sm">
-                Lock a university to focus your application and get a personalized task list.
+                Add {3 - shortlistedUniversities.length} more {shortlistedUniversities.length === 2 ? 'university' : 'universities'} to unlock the lock feature.
               </p>
             )}
           </div>
@@ -336,6 +391,40 @@ const Universities = () => {
           </div>
         )}
       </main>
+
+      {/* Bottom Navigation */}
+      <footer className="border-t border-border bg-background/80 backdrop-blur-md">
+        <div className="max-w-6xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Home className="w-4 h-4" />
+              Return to Dashboard
+            </button>
+            {lockedUniversity ? (
+              <Button
+                variant="hero"
+                size="sm"
+                onClick={() => navigate('/application')}
+              >
+                Prepare Applications
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            ) : (
+              <Button
+                variant="hero"
+                size="sm"
+                onClick={() => navigate('/counsellor')}
+              >
+                Get AI Recommendations
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

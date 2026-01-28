@@ -8,6 +8,7 @@ import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { toast } from '@/hooks/use-toast';
 import { 
   ArrowLeft, 
+  ArrowRight,
   Send, 
   Sparkles,
   Target,
@@ -16,7 +17,8 @@ import {
   Check,
   Volume2,
   VolumeX,
-  Loader2
+  Loader2,
+  Home
 } from 'lucide-react';
 
 interface Message {
@@ -247,6 +249,21 @@ const Counsellor = () => {
     }
   };
 
+  const getPrimaryAction = () => {
+    switch (currentStage) {
+      case 2:
+        return { label: 'Discover Universities', route: '/universities' };
+      case 3:
+        return { label: 'Prepare Applications', route: '/application' };
+      case 4:
+        return { label: 'View Application Status', route: '/application' };
+      default:
+        return { label: 'Discover Universities', route: '/universities' };
+    }
+  };
+
+  const primaryAction = getPrimaryAction();
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
@@ -270,12 +287,13 @@ const Counsellor = () => {
             </div>
           </div>
 
-          <button
-            onClick={() => navigate('/universities')}
-            className="text-sm text-primary hover:underline"
+          <Button
+            variant="hero"
+            size="sm"
+            onClick={() => navigate(primaryAction.route)}
           >
-            Universities ({shortlistedUniversities.length})
-          </button>
+            {primaryAction.label}
+          </Button>
         </div>
       </header>
 
@@ -293,9 +311,20 @@ const Counsellor = () => {
               <p className="text-muted-foreground mb-2 max-w-md mx-auto">
                 I know your profile. Ask me about universities, your gaps, or what to do next.
               </p>
-              <p className="text-xs text-muted-foreground mb-8">
+              <p className="text-xs text-muted-foreground mb-6">
                 Stage {currentStage}: {getStageLabel()}
               </p>
+
+              {/* Center Primary CTA */}
+              <Button
+                variant="hero"
+                size="heroLg"
+                onClick={() => navigate(primaryAction.route)}
+                className="mb-8"
+              >
+                {primaryAction.label}
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
 
               <div className="grid sm:grid-cols-2 gap-3 max-w-lg mx-auto">
                 {[
@@ -412,7 +441,7 @@ const Counsellor = () => {
 
       {/* Input Area */}
       <div className="border-t border-border bg-background/80 backdrop-blur-md">
-        <div className="max-w-4xl mx-auto px-6 py-4">
+        <div className="max-w-4xl mx-auto px-6 py-4 space-y-4">
           <div className="flex items-center gap-3">
             <Input
               value={input}
@@ -434,6 +463,25 @@ const Counsellor = () => {
               ) : (
                 <Send className="w-5 h-5" />
               )}
+            </Button>
+          </div>
+
+          {/* Bottom Navigation */}
+          <div className="flex items-center justify-between pt-2 border-t border-border/50">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Home className="w-4 h-4" />
+              Return to Dashboard
+            </button>
+            <Button
+              variant="hero"
+              size="sm"
+              onClick={() => navigate(primaryAction.route)}
+            >
+              {primaryAction.label}
+              <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
         </div>

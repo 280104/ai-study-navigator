@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
   ArrowLeft, 
+  ArrowRight,
   Lock,
   FileText,
   GraduationCap,
@@ -12,7 +13,8 @@ import {
   ClipboardList,
   CheckCircle2,
   Circle,
-  PartyPopper
+  PartyPopper,
+  Home
 } from 'lucide-react';
 
 const Application = () => {
@@ -34,7 +36,7 @@ const Application = () => {
 
   if (!lockedUniversity) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background flex flex-col">
         {/* Header */}
         <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -48,11 +50,17 @@ const Application = () => {
 
             <h1 className="font-serif text-lg font-medium text-foreground">Application</h1>
 
-            <div className="w-20" />
+            <Button
+              variant="hero"
+              size="sm"
+              onClick={() => navigate('/universities')}
+            >
+              Discover Universities
+            </Button>
           </div>
         </header>
 
-        <main className="max-w-4xl mx-auto px-6 py-16 text-center">
+        <main className="flex-1 max-w-4xl mx-auto px-6 py-16 text-center">
           <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-6">
             <Lock className="w-8 h-8 text-muted-foreground" />
           </div>
@@ -64,12 +72,36 @@ const Application = () => {
           </p>
           <Button
             variant="hero"
-            size="heroMd"
+            size="heroLg"
             onClick={() => navigate('/universities')}
           >
-            Browse Universities
+            Discover Universities
+            <ArrowRight className="w-5 h-5 ml-2" />
           </Button>
         </main>
+
+        {/* Bottom Navigation */}
+        <footer className="border-t border-border bg-background/80 backdrop-blur-md">
+          <div className="max-w-4xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Home className="w-4 h-4" />
+                Return to Dashboard
+              </button>
+              <Button
+                variant="hero"
+                size="sm"
+                onClick={() => navigate('/universities')}
+              >
+                Discover Universities
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        </footer>
       </div>
     );
   }
@@ -111,7 +143,7 @@ const Application = () => {
   }, {} as Record<string, typeof applicationTasks>);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -125,16 +157,17 @@ const Application = () => {
 
           <h1 className="font-serif text-lg font-medium text-foreground">Application</h1>
 
-          <button
-            onClick={() => navigate('/universities')}
-            className="text-sm text-primary hover:underline"
+          <Button
+            variant="hero"
+            size="sm"
+            onClick={() => navigate('/counsellor')}
           >
-            Change University
-          </button>
+            Ask AI Counsellor
+          </Button>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
+      <main className="flex-1 max-w-4xl mx-auto px-6 py-8">
         {/* Locked University Card */}
         <div className="p-6 rounded-2xl border border-primary/20 bg-primary/5 mb-8">
           <div className="flex items-start justify-between">
@@ -164,6 +197,21 @@ const Application = () => {
               />
             </div>
           </div>
+        </div>
+
+        {/* Center CTA - Get Help from AI */}
+        <div className="text-center mb-8 p-6 rounded-2xl border border-border bg-card">
+          <p className="text-muted-foreground mb-4">
+            Need help with your tasks? Ask the AI Counsellor for guidance.
+          </p>
+          <Button
+            variant="hero"
+            size="heroLg"
+            onClick={() => navigate('/counsellor')}
+          >
+            Get AI Help
+            <ArrowRight className="w-5 h-5 ml-2" />
+          </Button>
         </div>
 
         {/* Completion State */}
@@ -232,6 +280,29 @@ const Application = () => {
           })}
         </div>
       </main>
+
+      {/* Bottom Navigation */}
+      <footer className="border-t border-border bg-background/80 backdrop-blur-md">
+        <div className="max-w-4xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Home className="w-4 h-4" />
+              Return to Dashboard
+            </button>
+            <Button
+              variant="hero"
+              size="sm"
+              onClick={() => navigate('/counsellor')}
+            >
+              Get AI Help
+              <ArrowRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
