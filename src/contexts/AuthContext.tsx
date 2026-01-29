@@ -211,19 +211,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const lockUniversity = (universityId: string) => {
     if (!user) return;
+    
+    // Check if already locked (allow up to 5 universities to be locked)
+    const alreadyLocked = shortlistedUniversities.find(u => u.id === universityId)?.locked;
+    const lockedCount = shortlistedUniversities.filter(u => u.locked).length;
+    
+    if (alreadyLocked) return; // Already locked, do nothing
+    
+    if (lockedCount >= 5) {
+      // Max 5 universities can be locked
+      return;
+    }
+    
     const updated = shortlistedUniversities.map(u => 
       u.id === universityId 
         ? { ...u, locked: true, lockedAt: new Date().toISOString() }
-        : { ...u, locked: false, lockedAt: undefined }
+        : u
     );
     localStorage.setItem(`${STORAGE_KEYS.SHORTLIST}_${user.id}`, JSON.stringify(updated));
     setShortlistedUniversities(updated);
 
-    // Generate application tasks for the locked university
+    // Generate application tasks for the newly locked university
     const university = updated.find(u => u.id === universityId);
     if (university) {
-      const newTasks: ApplicationTask[] = [
-        {
+      const existingTaskUniIds = new Set(applicationTasks.map(t => t.universityId));
+      
+      // Only add tasks if this university doesn't already have tasks
+      if (!existingTaskUniIds.has(universityId)) {
+        const newTasks: ApplicationTask[] = [
+          {
           id: crypto.randomUUID(),
           universityId,
           title: 'Complete Statement of Purpose',
@@ -315,13 +331,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           id: crypto.randomUUID(),
           universityId,
           title: 'Submit Application',
-          description: 'Review all documents and submit the final application',
+          description: `Review all documents and submit the final application for ${university.name}`,
           category: 'forms',
           completed: false,
         },
-      ];
-      localStorage.setItem(`${STORAGE_KEYS.TASKS}_${user.id}`, JSON.stringify(newTasks));
-      setApplicationTasks(newTasks);
+        ];
+        // Append new tasks to existing ones
+        const allTasks = [...applicationTasks, ...newTasks];
+        localStorage.setItem(`${STORAGE_KEYS.TASKS}_${user.id}`, JSON.stringify(allTasks));
+        setApplicationTasks(allTasks);
+      }
     }
   };
 
@@ -347,6 +366,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const getLockedUniversity = () => {
     return shortlistedUniversities.find(u => u.locked) || null;
+  };
+
+  const getLockedUniversities = () => {
+    return shortlistedUniversities.filter(u => u.locked);
   };
 
   return (
