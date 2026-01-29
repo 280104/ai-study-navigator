@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { universities, University } from '@/data/universities';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { toast } from '@/hooks/use-toast';
 import { 
   ArrowLeft, 
@@ -18,7 +19,9 @@ import {
   Volume2,
   VolumeX,
   Loader2,
-  Home
+  Home,
+  Mic,
+  MicOff
 } from 'lucide-react';
 
 interface Message {
@@ -46,9 +49,17 @@ const Counsellor = () => {
   } = useAuth();
   const navigate = useNavigate();
   const { speak, stop, isSpeaking } = useSpeechSynthesis();
+  const { isListening, transcript, isSupported, startListening, stopListening, resetTranscript } = useSpeechRecognition();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Update input when transcript changes from voice
+  useEffect(() => {
+    if (transcript) {
+      setInput(transcript);
+    }
+  }, [transcript]);
 
   if (!user || !onboardingData?.completed) {
     navigate('/login');
@@ -152,6 +163,12 @@ const Counsellor = () => {
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
+    // Stop listening if active
+    if (isListening) {
+      stopListening();
+    }
+    resetTranscript();
+
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -221,6 +238,14 @@ const Counsellor = () => {
         title: "Added to shortlist",
         description: `${university.name} added to your list.`,
       });
+    }
+  };
+
+  const handleMicClick = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
     }
   };
 
@@ -443,11 +468,28 @@ const Counsellor = () => {
       <div className="border-t border-border bg-background/80 backdrop-blur-md">
         <div className="max-w-4xl mx-auto px-6 py-4 space-y-4">
           <div className="flex items-center gap-3">
+            {/* Microphone Button */}
+            {isSupported && (
+              <Button
+                variant={isListening ? "destructive" : "outline"}
+                size="icon"
+                onClick={handleMicClick}
+                className={`h-12 w-12 rounded-xl shrink-0 ${isListening ? 'animate-pulse' : ''}`}
+                title={isListening ? "Stop listening" : "Speak your message"}
+              >
+                {isListening ? (
+                  <MicOff className="w-5 h-5" />
+                ) : (
+                  <Mic className="w-5 h-5" />
+                )}
+              </Button>
+            )}
+            
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-              placeholder="Ask about universities, gaps, or next steps..."
+              placeholder={isListening ? "Listening... speak now" : "Ask about universities, gaps, or next steps..."}
               className="flex-1 h-12"
               disabled={isLoading}
             />
@@ -465,6 +507,13 @@ const Counsellor = () => {
               )}
             </Button>
           </div>
+
+          {/* Voice status indicator */}
+          {isListening && (
+            <div className="text-center text-sm text-primary animate-pulse">
+              🎤 Listening... Speak your question
+            </div>
+          )}
 
           {/* Bottom Navigation */}
           <div className="flex items-center justify-between pt-2 border-t border-border/50">
