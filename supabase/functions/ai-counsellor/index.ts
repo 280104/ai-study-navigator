@@ -34,8 +34,7 @@ serve(async (req) => {
 
   try {
     const { message, context } = await req.json() as { message: string; context: UserContext };
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");

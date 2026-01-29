@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, OnboardingData } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,8 @@ const STEPS = [
 const COUNTRIES = ['USA', 'UK', 'Canada', 'Australia', 'Germany', 'Netherlands', 'Singapore', 'Switzerland', 'Ireland'];
 
 const Onboarding = () => {
+  const [searchParams] = useSearchParams();
+  const isEditMode = searchParams.get('edit') === 'true';
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<OnboardingData>({
     academicBackground: {
@@ -48,9 +50,16 @@ const Onboarding = () => {
     completed: false,
   });
 
-  const { saveOnboarding, user } = useAuth();
+  const { saveOnboarding, user, onboardingData } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Pre-populate form data in edit mode
+  useEffect(() => {
+    if (isEditMode && onboardingData) {
+      setFormData(onboardingData);
+    }
+  }, [isEditMode, onboardingData]);
 
   if (!user) {
     navigate('/login');
@@ -80,8 +89,8 @@ const Onboarding = () => {
     } else {
       saveOnboarding(formData);
       toast({
-        title: 'Profile complete!',
-        description: 'You can now access your AI Counsellor.',
+        title: isEditMode ? 'Profile updated!' : 'Profile complete!',
+        description: isEditMode ? 'Your changes have been saved.' : 'You can now access your AI Counsellor.',
       });
       navigate('/dashboard');
     }
@@ -90,6 +99,8 @@ const Onboarding = () => {
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1);
+    } else if (isEditMode) {
+      navigate('/dashboard');
     }
   };
 
@@ -412,12 +423,26 @@ const Onboarding = () => {
 
         {/* Current Step Content */}
         <div className="mb-8">
-          <h1 className="font-serif text-2xl font-semibold text-foreground mb-2">
-            {STEPS[currentStep - 1].title}
-          </h1>
-          <p className="text-muted-foreground">
-            {STEPS[currentStep - 1].description}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="font-serif text-2xl font-semibold text-foreground mb-2">
+                {isEditMode ? `Edit: ${STEPS[currentStep - 1].title}` : STEPS[currentStep - 1].title}
+              </h1>
+              <p className="text-muted-foreground">
+                {STEPS[currentStep - 1].description}
+              </p>
+            </div>
+            {isEditMode && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/dashboard')}
+                className="text-muted-foreground"
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
         </div>
 
         {renderStep()}
@@ -427,11 +452,10 @@ const Onboarding = () => {
           <Button
             variant="ghost"
             onClick={handleBack}
-            disabled={currentStep === 1}
             className="gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back
+            {currentStep === 1 && isEditMode ? 'Cancel' : 'Back'}
           </Button>
 
           <Button
@@ -440,7 +464,7 @@ const Onboarding = () => {
             onClick={handleNext}
             className="gap-2"
           >
-            {currentStep === 4 ? 'Complete Profile' : 'Continue'}
+            {currentStep === 4 ? (isEditMode ? 'Save Changes' : 'Complete Profile') : 'Continue'}
             {currentStep < 4 && <ArrowRight className="w-4 h-4" />}
           </Button>
         </div>
