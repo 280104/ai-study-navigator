@@ -297,7 +297,17 @@ const Dashboard = () => {
 
             {/* Profile Summary */}
             <div className="p-6 rounded-2xl border border-border bg-card">
-              <h3 className="font-semibold text-foreground mb-4">Your Profile</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-foreground">Your Profile</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/onboarding?edit=true')}
+                  className="text-primary hover:text-primary/80"
+                >
+                  Edit Profile
+                </Button>
+              </div>
               
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
