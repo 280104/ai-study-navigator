@@ -45,7 +45,7 @@ const Counsellor = () => {
     currentStage,
     shortlistUniversity,
     lockUniversity,
-    getLockedUniversity
+    getLockedUniversities
   } = useAuth();
   const navigate = useNavigate();
   const { speak, stop, isSpeaking } = useSpeechSynthesis();
@@ -54,7 +54,6 @@ const Counsellor = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Update input when transcript changes from voice
   useEffect(() => {
     if (transcript) {
       setInput(transcript);
@@ -67,7 +66,7 @@ const Counsellor = () => {
   }
 
   const isShortlisted = (id: string) => shortlistedUniversities.some(u => u.id === id);
-  const lockedUni = getLockedUniversity();
+  const lockedUniversities = getLockedUniversities();
 
   const buildContext = () => ({
     name: user.name,
@@ -81,7 +80,7 @@ const Counsellor = () => {
     },
     shortlistedCount: shortlistedUniversities.length,
     shortlistedUniversities: shortlistedUniversities.map(u => u.name),
-    lockedUniversity: lockedUni?.name || null,
+    lockedUniversities: lockedUniversities.map(u => u.name),
     taskProgress: {
       completed: applicationTasks.filter(t => t.completed).length,
       total: applicationTasks.length,
@@ -123,32 +122,14 @@ const Counsellor = () => {
       }
       lockUniversity(uni.id);
       toast({
-        title: "University locked",
-        description: `${uni.name} is now your primary target. Application tasks created.`,
+        title: "University committed",
+        description: `${uni.name} is now your target. Application tasks created.`,
       });
     }
   };
 
   const extractUniversitiesFromContent = (content: string): University[] => {
     const mentioned: University[] = [];
-    const patterns = [
-      /\*\*([^*]+)\*\*\s*\((dream|target|safe)\)/gi,
-      /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+University|\s+Institute|\s+College)?)/g,
-    ];
-
-    // Match formatted universities first
-    let match;
-    while ((match = patterns[0].exec(content)) !== null) {
-      const uni = findUniversityByName(match[1]);
-      if (uni && !mentioned.find(m => m.id === uni.id)) {
-        mentioned.push(uni);
-      }
-    }
-
-    // If we found formatted ones, return those
-    if (mentioned.length > 0) return mentioned.slice(0, 4);
-
-    // Otherwise try to find any university mentions
     universities.forEach(uni => {
       if (content.toLowerCase().includes(uni.name.toLowerCase())) {
         if (!mentioned.find(m => m.id === uni.id)) {
@@ -156,14 +137,12 @@ const Counsellor = () => {
         }
       }
     });
-
     return mentioned.slice(0, 4);
   };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    // Stop listening if active
     if (isListening) {
       stopListening();
     }
@@ -201,8 +180,6 @@ const Counsellor = () => {
       }
 
       const data = await response.json();
-      
-      // Extract mentioned universities from response
       const mentionedUniversities = extractUniversitiesFromContent(data.content);
 
       const aiMessage: Message = {
@@ -214,7 +191,6 @@ const Counsellor = () => {
 
       setMessages(prev => [...prev, aiMessage]);
 
-      // Execute any actions
       if (data.action && data.action.action !== 'none') {
         executeAction(data.action);
       }
@@ -259,16 +235,16 @@ const Counsellor = () => {
 
   const getTierIcon = (tier: University['tier']) => {
     switch (tier) {
-      case 'dream': return <Sparkles className="w-4 h-4 text-amber-500" />;
-      case 'target': return <Target className="w-4 h-4 text-primary" />;
-      case 'safe': return <Shield className="w-4 h-4 text-emerald-500" />;
+      case 'dream': return <Sparkles className="w-3.5 h-3.5 text-amber-500" />;
+      case 'target': return <Target className="w-3.5 h-3.5 text-primary" />;
+      case 'safe': return <Shield className="w-3.5 h-3.5 text-emerald-500" />;
     }
   };
 
   const getStageLabel = () => {
     switch (currentStage) {
       case 2: return 'Discovery Phase';
-      case 3: return `Focused on ${lockedUni?.name || 'locked university'}`;
+      case 3: return `${lockedUniversities.length} universities committed`;
       case 4: return 'Application Execution';
       default: return 'Getting Started';
     }
@@ -279,9 +255,9 @@ const Counsellor = () => {
       case 2:
         return { label: 'Discover Universities', route: '/universities' };
       case 3:
-        return { label: 'Prepare Applications', route: '/application' };
+        return { label: 'Continue Application', route: '/application' };
       case 4:
-        return { label: 'View Application Status', route: '/application' };
+        return { label: 'View Application', route: '/application' };
       default:
         return { label: 'Discover Universities', route: '/universities' };
     }
@@ -291,31 +267,26 @@ const Counsellor = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+      {/* Minimal Header */}
+      <header className="border-b border-border/40 bg-background sticky top-0 z-50">
+        <div className="max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
           <button 
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Dashboard
+            <span className="hidden sm:inline">Dashboard</span>
           </button>
 
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <div className="text-center">
-              <span className="font-medium text-foreground block text-sm">AI Counsellor</span>
-              <span className="text-xs text-muted-foreground">{getStageLabel()}</span>
-            </div>
+          <div className="text-center">
+            <span className="font-serif text-lg font-medium text-foreground">AI Counsellor</span>
           </div>
 
           <Button
             variant="hero"
             size="sm"
             onClick={() => navigate(primaryAction.route)}
+            className="text-xs"
           >
             {primaryAction.label}
           </Button>
@@ -324,28 +295,23 @@ const Counsellor = () => {
 
       {/* Chat Area */}
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-6 py-8">
+        <div className="max-w-3xl mx-auto px-6 py-12">
           {messages.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-16 h-16 rounded-2xl gradient-accent flex items-center justify-center mx-auto mb-6">
-                <Sparkles className="w-8 h-8 text-primary-foreground" />
-              </div>
-              <h2 className="font-serif text-2xl font-semibold text-foreground mb-2">
-                Hello, {user.name.split(' ')[0]}!
+            <div className="text-center py-16 animate-fade-up">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{getStageLabel()}</p>
+              <h2 className="font-serif text-3xl font-semibold text-foreground mb-4">
+                Hello, {user.name.split(' ')[0]}
               </h2>
-              <p className="text-muted-foreground mb-2 max-w-md mx-auto">
-                I know your profile. Ask me about universities, your gaps, or what to do next.
-              </p>
-              <p className="text-xs text-muted-foreground mb-6">
-                Stage {currentStage}: {getStageLabel()}
+              <p className="text-muted-foreground mb-12 max-w-md mx-auto">
+                I have your profile. Ask me about university recommendations, application gaps, or what to focus on next.
               </p>
 
-              {/* Center Primary CTA */}
+              {/* Primary CTA */}
               <Button
                 variant="hero"
                 size="heroLg"
                 onClick={() => navigate(primaryAction.route)}
-                className="mb-8"
+                className="mb-12"
               >
                 {primaryAction.label}
                 <ArrowRight className="w-5 h-5 ml-2" />
@@ -364,7 +330,7 @@ const Counsellor = () => {
                       setInput(suggestion);
                       setTimeout(handleSend, 50);
                     }}
-                    className="p-3 text-sm text-left border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="p-4 text-sm text-left text-muted-foreground border border-border/60 rounded-lg hover:border-border hover:text-foreground transition-colors"
                   >
                     {suggestion}
                   </button>
@@ -372,89 +338,92 @@ const Counsellor = () => {
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-8">
               {messages.map((message) => (
-                <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-2xl ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'} rounded-2xl px-5 py-4`}>
-                    <div className="prose prose-sm dark:prose-invert whitespace-pre-wrap">
-                      {message.content}
+                <div key={message.id} className={`${message.role === 'user' ? 'ml-8' : 'mr-8'}`}>
+                  {message.role === 'user' ? (
+                    <div className="flex justify-end">
+                      <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-md px-5 py-3 max-w-xl">
+                        <p className="text-sm leading-relaxed">{message.content}</p>
+                      </div>
                     </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* AI Message - Clean, readable */}
+                      <div className="ai-message rounded-2xl rounded-bl-md px-6 py-5 max-w-xl">
+                        <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+                          {message.content}
+                        </p>
+                        
+                        <button
+                          onClick={() => handleSpeak(message.content)}
+                          className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {isSpeaking ? (
+                            <>
+                              <VolumeX className="w-3.5 h-3.5" />
+                              Stop
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 className="w-3.5 h-3.5" />
+                              Listen
+                            </>
+                          )}
+                        </button>
+                      </div>
 
-                    {/* Speak button for AI messages */}
-                    {message.role === 'assistant' && (
-                      <button
-                        onClick={() => handleSpeak(message.content)}
-                        className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {isSpeaking ? (
-                          <>
-                            <VolumeX className="w-3.5 h-3.5" />
-                            Stop
-                          </>
-                        ) : (
-                          <>
-                            <Volume2 className="w-3.5 h-3.5" />
-                            Listen
-                          </>
-                        )}
-                      </button>
-                    )}
-
-                    {/* University Cards */}
-                    {message.universities && message.universities.length > 0 && (
-                      <div className="mt-4 space-y-3">
-                        {message.universities.map((uni) => (
-                          <div 
-                            key={uni.id}
-                            className="p-4 bg-background rounded-xl border border-border"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                  {getTierIcon(uni.tier)}
-                                  <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                                    {uni.tier}
-                                  </span>
+                      {/* University Cards - Compact */}
+                      {message.universities && message.universities.length > 0 && (
+                        <div className="space-y-2 ml-2">
+                          {message.universities.map((uni) => (
+                            <div 
+                              key={uni.id}
+                              className="flex items-center justify-between p-3 bg-card border border-border/60 rounded-lg"
+                            >
+                              <div className="flex items-center gap-3">
+                                {getTierIcon(uni.tier)}
+                                <div>
+                                  <p className="text-sm font-medium text-foreground">{uni.name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {uni.country} · #{uni.ranking}
+                                  </p>
                                 </div>
-                                <h4 className="font-medium">{uni.name}</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  {uni.country} • Rank #{uni.ranking} • {uni.acceptanceRate} acceptance
-                                </p>
                               </div>
                               <Button
                                 size="sm"
                                 variant={isShortlisted(uni.id) ? 'secondary' : 'outline'}
                                 onClick={() => handleShortlist(uni)}
                                 disabled={isShortlisted(uni.id)}
-                                className="shrink-0"
+                                className="text-xs h-8"
                               >
                                 {isShortlisted(uni.id) ? (
                                   <>
-                                    <Check className="w-4 h-4 mr-1" />
+                                    <Check className="w-3.5 h-3.5 mr-1" />
                                     Added
                                   </>
                                 ) : (
                                   <>
-                                    <Plus className="w-4 h-4 mr-1" />
+                                    <Plus className="w-3.5 h-3.5 mr-1" />
                                     Shortlist
                                   </>
                                 )}
                               </Button>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
 
               {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-muted rounded-2xl px-5 py-4">
+                <div className="mr-8">
+                  <div className="ai-message rounded-2xl rounded-bl-md px-6 py-5 max-w-xl">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">Analyzing your profile...</span>
+                      <span className="text-sm">Thinking...</span>
                     </div>
                   </div>
                 </div>
@@ -465,32 +434,33 @@ const Counsellor = () => {
       </main>
 
       {/* Input Area */}
-      <div className="border-t border-border bg-background/80 backdrop-blur-md">
-        <div className="max-w-4xl mx-auto px-6 py-4 space-y-4">
+      <div className="border-t border-border/40 bg-background">
+        <div className="max-w-3xl mx-auto px-6 py-4 space-y-4">
           <div className="flex items-center gap-3">
-            {/* Microphone Button */}
             {isSupported && (
-              <Button
-                variant={isListening ? "destructive" : "outline"}
-                size="icon"
+              <button
                 onClick={handleMicClick}
-                className={`h-12 w-12 rounded-xl shrink-0 ${isListening ? 'animate-pulse' : ''}`}
-                title={isListening ? "Stop listening" : "Speak your message"}
+                className={`w-11 h-11 rounded-full border flex items-center justify-center transition-colors ${
+                  isListening 
+                    ? 'bg-destructive text-destructive-foreground border-destructive animate-pulse' 
+                    : 'border-border hover:border-foreground/20'
+                }`}
+                title={isListening ? "Stop listening" : "Speak"}
               >
                 {isListening ? (
-                  <MicOff className="w-5 h-5" />
+                  <MicOff className="w-4 h-4" />
                 ) : (
-                  <Mic className="w-5 h-5" />
+                  <Mic className="w-4 h-4 text-muted-foreground" />
                 )}
-              </Button>
+              </button>
             )}
             
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-              placeholder={isListening ? "Listening... speak now" : "Ask about universities, gaps, or next steps..."}
-              className="flex-1 h-12"
+              placeholder={isListening ? "Listening..." : "Ask about universities, gaps, or next steps..."}
+              className="flex-1 h-11 border-border/60"
               disabled={isLoading}
             />
             <Button
@@ -498,39 +468,37 @@ const Counsellor = () => {
               size="icon"
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
-              className="h-12 w-12 rounded-xl"
+              className="h-11 w-11 rounded-full"
             >
               {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <Send className="w-5 h-5" />
+                <Send className="w-4 h-4" />
               )}
             </Button>
           </div>
 
-          {/* Voice status indicator */}
           {isListening && (
-            <div className="text-center text-sm text-primary animate-pulse">
-              🎤 Listening... Speak your question
-            </div>
+            <p className="text-center text-xs text-primary">Listening... speak now</p>
           )}
 
-          {/* Bottom Navigation */}
-          <div className="flex items-center justify-between pt-2 border-t border-border/50">
+          {/* Bottom Nav */}
+          <div className="flex items-center justify-between pt-3 border-t border-border/40">
             <button
               onClick={() => navigate('/dashboard')}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              <Home className="w-4 h-4" />
-              Return to Dashboard
+              <Home className="w-3.5 h-3.5" />
+              Dashboard
             </button>
             <Button
-              variant="hero"
+              variant="ghost"
               size="sm"
               onClick={() => navigate(primaryAction.route)}
+              className="text-xs"
             >
               {primaryAction.label}
-              <ArrowRight className="w-4 h-4 ml-1" />
+              <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Button>
           </div>
         </div>
