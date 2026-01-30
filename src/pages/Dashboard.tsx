@@ -2,15 +2,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
-  User, 
-  Target, 
-  Lock, 
-  CheckCircle2, 
   ArrowRight,
   GraduationCap,
   DollarSign,
-  FileText,
-  BookOpen
+  BookOpen,
+  ChevronRight,
+  Lock
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -21,7 +18,7 @@ const Dashboard = () => {
     applicationTasks,
     currentStage,
     logout,
-    getLockedUniversity
+    getLockedUniversities
   } = useAuth();
   const navigate = useNavigate();
 
@@ -35,7 +32,7 @@ const Dashboard = () => {
     return null;
   }
 
-  const lockedUniversity = getLockedUniversity();
+  const lockedUniversities = getLockedUniversities();
   const completedTasks = applicationTasks.filter(t => t.completed).length;
   const totalTasks = applicationTasks.length;
 
@@ -44,35 +41,35 @@ const Dashboard = () => {
       case 1:
         return {
           label: 'Onboarding',
-          description: 'Complete your profile',
+          description: 'Complete your profile to get started',
           action: 'Complete Onboarding',
           route: '/onboarding',
         };
       case 2:
         return {
           label: 'Discovery',
-          description: 'Explore and shortlist universities',
+          description: 'Explore universities and build your shortlist',
           action: 'Talk to AI Counsellor',
           route: '/counsellor',
         };
       case 3:
         return {
-          label: 'Execution',
-          description: 'Complete application tasks',
-          action: 'View Application Tasks',
+          label: 'Application',
+          description: 'Complete your application tasks',
+          action: 'Continue Application',
           route: '/application',
         };
       case 4:
         return {
-          label: 'Ready',
-          description: 'Ready to submit application',
+          label: 'Ready to Submit',
+          description: 'Your applications are ready for submission',
           action: 'Review Application',
           route: '/application',
         };
       default:
         return {
           label: 'Getting Started',
-          description: 'Begin your journey',
+          description: 'Begin your study abroad journey',
           action: 'Get Started',
           route: '/counsellor',
         };
@@ -85,30 +82,25 @@ const Dashboard = () => {
     let strength = 0;
     let factors: { label: string; met: boolean }[] = [];
 
-    // Academic background
     const hasGoodGPA = onboardingData.academicBackground.gpa !== '';
     factors.push({ label: 'Academic records', met: hasGoodGPA });
     if (hasGoodGPA) strength += 20;
 
-    // Exams
     const hasExams = onboardingData.exams.gre || onboardingData.exams.toefl || 
                      onboardingData.exams.ielts || onboardingData.exams.gmat;
     factors.push({ label: 'Standardized tests', met: !!hasExams });
     if (hasExams) strength += 25;
 
-    // SOP readiness
     const sopReady = ['refining', 'ready'].includes(onboardingData.sopReadiness);
     factors.push({ label: 'SOP preparation', met: sopReady });
     if (sopReady) strength += 20;
 
-    // Shortlist
     const hasShortlist = shortlistedUniversities.length >= 3;
     factors.push({ label: 'University shortlist', met: hasShortlist });
     if (hasShortlist) strength += 15;
 
-    // Locked university
-    factors.push({ label: 'Target university locked', met: !!lockedUniversity });
-    if (lockedUniversity) strength += 20;
+    factors.push({ label: 'University committed', met: lockedUniversities.length > 0 });
+    if (lockedUniversities.length > 0) strength += 20;
 
     return { strength, factors };
   };
@@ -117,24 +109,19 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center">
-              <span className="text-primary-foreground font-serif font-bold text-sm">A</span>
-            </div>
-            <span className="font-serif text-lg font-medium text-foreground">
-              AI Counsellor
-            </span>
-          </div>
+      {/* Minimal Header */}
+      <header className="border-b border-border/40 bg-background sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-6 lg:px-8 h-14 flex items-center justify-between">
+          <span className="font-serif text-lg font-medium text-foreground tracking-tight">
+            AI Counsellor
+          </span>
 
-          <nav className="flex items-center gap-6">
+          <nav className="flex items-center gap-8">
             <button 
               onClick={() => navigate('/counsellor')}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              AI Counsellor
+              Counsellor
             </button>
             <button 
               onClick={() => navigate('/universities')}
@@ -158,135 +145,123 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-12">
-        {/* Welcome Section */}
-        <div className="mb-12">
-          <h1 className="font-serif text-3xl font-semibold text-foreground mb-2">
-            Welcome back, {user.name.split(' ')[0]}
+      <main className="max-w-5xl mx-auto px-6 lg:px-8 py-16">
+        {/* Welcome */}
+        <div className="mb-16">
+          <p className="text-sm text-muted-foreground mb-2">Welcome back</p>
+          <h1 className="font-serif text-4xl font-semibold text-foreground tracking-tight">
+            {user.name.split(' ')[0]}
           </h1>
-          <p className="text-lg text-muted-foreground">
-            Here's where you are in your study abroad journey
-          </p>
         </div>
 
         {/* Main Grid */}
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Left Column - Stage & Action */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Current Stage Card */}
-            <div className="p-8 rounded-2xl border border-border bg-card">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl gradient-accent flex items-center justify-center">
-                  <Target className="w-6 h-6 text-primary-foreground" />
-                </div>
+        <div className="grid lg:grid-cols-5 gap-12">
+          {/* Left - Current Stage (3 cols) */}
+          <div className="lg:col-span-3 space-y-8">
+            {/* Stage Card - Visual Anchor */}
+            <div className="space-y-6">
+              <div className="flex items-baseline justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Current Stage</p>
-                  <h2 className="text-xl font-semibold text-foreground">{stageInfo.label}</h2>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Current Stage</p>
+                  <h2 className="font-serif text-2xl font-semibold text-foreground">{stageInfo.label}</h2>
                 </div>
+                <span className="text-sm text-muted-foreground">Step {currentStage} of 4</span>
               </div>
 
-              <p className="text-muted-foreground mb-6">{stageInfo.description}</p>
-
-              {/* Stage Progress */}
-              <div className="flex items-center gap-2 mb-8">
-                {[1, 2, 3, 4].map((stage) => (
-                  <div
-                    key={stage}
-                    className={`flex-1 h-2 rounded-full ${
-                      stage <= currentStage ? 'gradient-accent' : 'bg-muted'
-                    }`}
-                  />
-                ))}
+              {/* Calm Progress */}
+              <div className="progress-calm">
+                <div 
+                  className="progress-calm-fill"
+                  style={{ width: `${(currentStage / 4) * 100}%` }}
+                />
               </div>
 
+              <p className="text-muted-foreground">{stageInfo.description}</p>
+
+              {/* Primary CTA */}
               <Button
                 variant="hero"
                 size="heroLg"
                 onClick={() => navigate(stageInfo.route)}
-                className="w-full gap-2"
+                className="w-full"
               >
                 {stageInfo.action}
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-6 rounded-xl border border-border bg-card">
-                <div className="flex items-center gap-3 mb-3">
-                  <GraduationCap className="w-5 h-5 text-primary" />
-                  <span className="text-sm text-muted-foreground">Shortlisted</span>
-                </div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {shortlistedUniversities.length} universities
-                </p>
+            {/* Stats Row */}
+            <div className="grid grid-cols-2 gap-6 pt-6 border-t border-border/40">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Shortlisted</p>
+                <p className="text-2xl font-medium text-foreground">{shortlistedUniversities.length}</p>
               </div>
-
-              <div className="p-6 rounded-xl border border-border bg-card">
-                <div className="flex items-center gap-3 mb-3">
-                  <Lock className="w-5 h-5 text-primary" />
-                  <span className="text-sm text-muted-foreground">Locked Target</span>
-                </div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {lockedUniversity ? '1 university' : 'None yet'}
-                </p>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Committed</p>
+                <p className="text-2xl font-medium text-foreground">{lockedUniversities.length}</p>
               </div>
-
-              {lockedUniversity && (
-                <div className="col-span-2 p-6 rounded-xl border border-primary/20 bg-primary/5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Focused on</p>
-                      <p className="font-semibold text-foreground">{lockedUniversity.name}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground mb-1">Tasks completed</p>
-                      <p className="font-semibold text-foreground">{completedTasks}/{totalTasks}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
+
+            {/* Locked Universities */}
+            {lockedUniversities.length > 0 && (
+              <div className="pt-6 border-t border-border/40">
+                <p className="text-sm text-muted-foreground mb-4">Your Target Universities</p>
+                <div className="space-y-3">
+                  {lockedUniversities.map((uni) => {
+                    const uniTasks = applicationTasks.filter(t => t.universityId === uni.id);
+                    const completedUniTasks = uniTasks.filter(t => t.completed).length;
+                    const progress = uniTasks.length > 0 ? (completedUniTasks / uniTasks.length) * 100 : 0;
+                    
+                    return (
+                      <button
+                        key={uni.id}
+                        onClick={() => navigate('/application')}
+                        className="w-full flex items-center justify-between p-4 rounded-lg border border-border/60 hover:border-border transition-colors text-left group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Lock className="w-4 h-4 text-primary" />
+                          <div>
+                            <p className="font-medium text-foreground">{uni.name}</p>
+                            <p className="text-sm text-muted-foreground">{completedUniTasks}/{uniTasks.length} tasks</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-primary/80 rounded-full transition-all"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Right Column - Profile Strength */}
-          <div className="space-y-6">
+          {/* Right - Profile (2 cols) */}
+          <div className="lg:col-span-2 space-y-8">
             {/* Profile Strength */}
-            <div className="p-6 rounded-2xl border border-border bg-card">
-              <h3 className="font-semibold text-foreground mb-4">Profile Strength</h3>
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm text-muted-foreground">Profile Strength</p>
+                <span className="text-lg font-medium text-foreground">{profileStrength.strength}%</span>
+              </div>
               
-              <div className="relative w-32 h-32 mx-auto mb-6">
-                <svg className="w-full h-full -rotate-90">
-                  <circle
-                    cx="64"
-                    cy="64"
-                    r="56"
-                    className="fill-none stroke-muted"
-                    strokeWidth="12"
-                  />
-                  <circle
-                    cx="64"
-                    cy="64"
-                    r="56"
-                    className="fill-none stroke-primary"
-                    strokeWidth="12"
-                    strokeDasharray={`${(profileStrength.strength / 100) * 352} 352`}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-foreground">{profileStrength.strength}%</span>
-                </div>
+              <div className="progress-calm mb-6">
+                <div 
+                  className="progress-calm-fill"
+                  style={{ width: `${profileStrength.strength}%` }}
+                />
               </div>
 
               <div className="space-y-3">
                 {profileStrength.factors.map((factor, index) => (
                   <div key={index} className="flex items-center gap-3">
-                    {factor.met ? (
-                      <CheckCircle2 className="w-4 h-4 text-primary" />
-                    ) : (
-                      <div className="w-4 h-4 rounded-full border-2 border-muted" />
-                    )}
+                    <div className={`w-1.5 h-1.5 rounded-full ${factor.met ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
                     <span className={`text-sm ${factor.met ? 'text-foreground' : 'text-muted-foreground'}`}>
                       {factor.label}
                     </span>
@@ -296,49 +271,39 @@ const Dashboard = () => {
             </div>
 
             {/* Profile Summary */}
-            <div className="p-6 rounded-2xl border border-border bg-card">
+            <div className="pt-6 border-t border-border/40">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground">Your Profile</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <p className="text-sm text-muted-foreground">Your Profile</p>
+                <button
                   onClick={() => navigate('/onboarding?edit=true')}
-                  className="text-primary hover:text-primary/80"
+                  className="text-sm text-primary hover:text-primary/80 transition-colors"
                 >
-                  Edit Profile
-                </Button>
+                  Edit
+                </button>
               </div>
               
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <BookOpen className="w-4 h-4 text-muted-foreground mt-1" />
+                  <BookOpen className="w-4 h-4 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Studying</p>
-                    <p className="text-foreground">{onboardingData.studyGoal.targetField || onboardingData.academicBackground.field}</p>
+                    <p className="text-xs text-muted-foreground">Field</p>
+                    <p className="text-sm text-foreground">{onboardingData.studyGoal.targetField || onboardingData.academicBackground.field}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <GraduationCap className="w-4 h-4 text-muted-foreground mt-1" />
+                  <GraduationCap className="w-4 h-4 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Target Degree</p>
-                    <p className="text-foreground">{onboardingData.studyGoal.degree}</p>
+                    <p className="text-xs text-muted-foreground">Degree</p>
+                    <p className="text-sm text-foreground">{onboardingData.studyGoal.degree}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <DollarSign className="w-4 h-4 text-muted-foreground mt-1" />
+                  <DollarSign className="w-4 h-4 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Budget Range</p>
-                    <p className="text-foreground">{onboardingData.budget.totalBudget.replace('-', ' - $')}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <FileText className="w-4 h-4 text-muted-foreground mt-1" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Countries</p>
-                    <p className="text-foreground">{onboardingData.studyGoal.preferredCountries.join(', ') || 'Not specified'}</p>
+                    <p className="text-xs text-muted-foreground">Budget</p>
+                    <p className="text-sm text-foreground">{onboardingData.budget.totalBudget.replace('-', ' – $')}</p>
                   </div>
                 </div>
               </div>

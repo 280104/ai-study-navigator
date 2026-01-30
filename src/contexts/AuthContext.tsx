@@ -69,6 +69,8 @@ interface AuthContextType {
   unlockUniversity: (universityId: string) => void;
   toggleTaskComplete: (taskId: string) => void;
   getLockedUniversity: () => ShortlistedUniversity | null;
+  getLockedUniversities: () => ShortlistedUniversity[];
+  getTasksForUniversity: (universityId: string) => ApplicationTask[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -372,6 +374,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return shortlistedUniversities.filter(u => u.locked);
   };
 
+  const getTasksForUniversity = (universityId: string) => {
+    return applicationTasks.filter(t => t.universityId === universityId);
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -390,6 +396,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       unlockUniversity,
       toggleTaskComplete,
       getLockedUniversity,
+      getLockedUniversities,
+      getTasksForUniversity,
     }}>
       {children}
     </AuthContext.Provider>

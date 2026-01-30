@@ -2,13 +2,10 @@ import { Link } from "react-router-dom";
 
 const Header = () => {
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
-      <div className="max-w-6xl mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center">
-            <span className="text-primary-foreground font-serif font-bold text-sm">A</span>
-          </div>
-          <span className="font-serif text-lg font-medium text-foreground">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border/40">
+      <div className="max-w-5xl mx-auto px-6 lg:px-8 h-14 flex items-center justify-between">
+        <Link to="/" className="flex items-center">
+          <span className="font-serif text-lg font-medium text-foreground tracking-tight">
             AI Counsellor
           </span>
         </Link>
@@ -24,7 +21,7 @@ const Header = () => {
 
         <Link 
           to="/login" 
-          className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+          className="text-sm text-foreground hover:text-primary transition-colors"
         >
           Sign in
         </Link>

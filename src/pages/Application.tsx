@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,9 @@ import {
   CheckCircle2,
   Circle,
   PartyPopper,
-  Home
+  Home,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 
 const Application = () => {
@@ -23,37 +26,58 @@ const Application = () => {
     onboardingData, 
     applicationTasks,
     toggleTaskComplete,
-    getLockedUniversity
+    getLockedUniversities,
+    getTasksForUniversity
   } = useAuth();
   const navigate = useNavigate();
+  const [expandedUniversities, setExpandedUniversities] = useState<Set<string>>(new Set());
 
   if (!user || !onboardingData?.completed) {
     navigate('/login');
     return null;
   }
 
-  const lockedUniversity = getLockedUniversity();
+  const lockedUniversities = getLockedUniversities();
 
-  if (!lockedUniversity) {
+  // Toggle expanded state
+  const toggleExpanded = (uniId: string) => {
+    setExpandedUniversities(prev => {
+      const next = new Set(prev);
+      if (next.has(uniId)) {
+        next.delete(uniId);
+      } else {
+        next.add(uniId);
+      }
+      return next;
+    });
+  };
+
+  // Expand all on first render if only one university
+  if (lockedUniversities.length === 1 && expandedUniversities.size === 0) {
+    setExpandedUniversities(new Set([lockedUniversities[0].id]));
+  }
+
+  if (lockedUniversities.length === 0) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         {/* Header */}
-        <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-          <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+        <header className="border-b border-border/40 bg-background sticky top-0 z-50">
+          <div className="max-w-4xl mx-auto px-6 h-14 flex items-center justify-between">
             <button 
               onClick={() => navigate('/dashboard')}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Dashboard
             </button>
 
-            <h1 className="font-serif text-lg font-medium text-foreground">Application</h1>
+            <span className="font-serif text-lg font-medium text-foreground">Application</span>
 
             <Button
               variant="hero"
               size="sm"
               onClick={() => navigate('/universities')}
+              className="text-xs"
             >
               Discover Universities
             </Button>
@@ -61,43 +85,43 @@ const Application = () => {
         </header>
 
         <main className="flex-1 max-w-4xl mx-auto px-6 py-16 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-6">
-            <Lock className="w-8 h-8 text-muted-foreground" />
+          <div className="max-w-md mx-auto">
+            <Lock className="w-12 h-12 text-muted-foreground/50 mx-auto mb-6" />
+            <h2 className="font-serif text-2xl font-semibold text-foreground mb-3">
+              No University Committed
+            </h2>
+            <p className="text-muted-foreground mb-8">
+              Commit to a university from your shortlist to unlock personalized application tasks and guidance.
+            </p>
+            <Button
+              variant="hero"
+              size="heroLg"
+              onClick={() => navigate('/universities')}
+            >
+              Discover Universities
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
           </div>
-          <h2 className="font-serif text-2xl font-semibold text-foreground mb-3">
-            No University Locked
-          </h2>
-          <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-            Lock a university from your shortlist to unlock personalized application guidance with tasks and timeline.
-          </p>
-          <Button
-            variant="hero"
-            size="heroLg"
-            onClick={() => navigate('/universities')}
-          >
-            Discover Universities
-            <ArrowRight className="w-5 h-5 ml-2" />
-          </Button>
         </main>
 
-        {/* Bottom Navigation */}
-        <footer className="border-t border-border bg-background/80 backdrop-blur-md">
+        <footer className="border-t border-border/40 bg-background">
           <div className="max-w-4xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => navigate('/dashboard')}
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                <Home className="w-4 h-4" />
-                Return to Dashboard
+                <Home className="w-3.5 h-3.5" />
+                Dashboard
               </button>
               <Button
-                variant="hero"
+                variant="ghost"
                 size="sm"
                 onClick={() => navigate('/universities')}
+                className="text-xs"
               >
                 Discover Universities
-                <ArrowRight className="w-4 h-4 ml-1" />
+                <ArrowRight className="w-3.5 h-3.5 ml-1" />
               </Button>
             </div>
           </div>
@@ -106,19 +130,20 @@ const Application = () => {
     );
   }
 
+  // Calculate overall progress
   const completedTasks = applicationTasks.filter(t => t.completed).length;
   const totalTasks = applicationTasks.length;
-  const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-  const isComplete = completedTasks === totalTasks && totalTasks > 0;
+  const overallProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+  const isAllComplete = completedTasks === totalTasks && totalTasks > 0;
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'sop': return <FileText className="w-5 h-5" />;
-      case 'lor': return <Users className="w-5 h-5" />;
-      case 'exams': return <GraduationCap className="w-5 h-5" />;
-      case 'documents': return <ClipboardList className="w-5 h-5" />;
-      case 'forms': return <Send className="w-5 h-5" />;
-      default: return <Circle className="w-5 h-5" />;
+      case 'sop': return <FileText className="w-4 h-4" />;
+      case 'lor': return <Users className="w-4 h-4" />;
+      case 'exams': return <GraduationCap className="w-4 h-4" />;
+      case 'documents': return <ClipboardList className="w-4 h-4" />;
+      case 'forms': return <Send className="w-4 h-4" />;
+      default: return <Circle className="w-4 h-4" />;
     }
   };
 
@@ -133,34 +158,26 @@ const Application = () => {
     }
   };
 
-  // Group tasks by category
-  const tasksByCategory = applicationTasks.reduce((acc, task) => {
-    if (!acc[task.category]) {
-      acc[task.category] = [];
-    }
-    acc[task.category].push(task);
-    return acc;
-  }, {} as Record<string, typeof applicationTasks>);
-
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+      <header className="border-b border-border/40 bg-background sticky top-0 z-50">
+        <div className="max-w-4xl mx-auto px-6 h-14 flex items-center justify-between">
           <button 
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Dashboard
+            <span className="hidden sm:inline">Dashboard</span>
           </button>
 
-          <h1 className="font-serif text-lg font-medium text-foreground">Application</h1>
+          <span className="font-serif text-lg font-medium text-foreground">Application</span>
 
           <Button
             variant="hero"
             size="sm"
             onClick={() => navigate('/counsellor')}
+            className="text-xs"
           >
             Ask AI Counsellor
           </Button>
@@ -168,41 +185,42 @@ const Application = () => {
       </header>
 
       <main className="flex-1 max-w-4xl mx-auto px-6 py-8">
-        {/* Locked University Card */}
-        <div className="p-6 rounded-2xl border border-primary/20 bg-primary/5 mb-8">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl gradient-accent flex items-center justify-center">
-                <Lock className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Applying to</p>
-                <h2 className="text-xl font-semibold text-foreground">{lockedUniversity.name}</h2>
-                <p className="text-sm text-muted-foreground">{lockedUniversity.country}</p>
-              </div>
+        {/* Overall Progress */}
+        <div className="mb-12">
+          <div className="flex items-baseline justify-between mb-2">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Overall Progress</p>
+              <h1 className="font-serif text-2xl font-semibold text-foreground">
+                {lockedUniversities.length} {lockedUniversities.length === 1 ? 'University' : 'Universities'}
+              </h1>
             </div>
-
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Progress</p>
-              <p className="text-2xl font-bold text-foreground">{completedTasks}/{totalTasks}</p>
-            </div>
+            <span className="text-lg font-medium text-foreground">{completedTasks}/{totalTasks}</span>
           </div>
-
-          {/* Progress Bar */}
-          <div className="mt-6">
-            <div className="h-2 bg-background rounded-full overflow-hidden">
-              <div 
-                className="h-full gradient-accent transition-all duration-500"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+          <div className="progress-calm">
+            <div 
+              className="progress-calm-fill"
+              style={{ width: `${overallProgress}%` }}
+            />
           </div>
         </div>
 
-        {/* Center CTA - Get Help from AI */}
-        <div className="text-center mb-8 p-6 rounded-2xl border border-border bg-card">
-          <p className="text-muted-foreground mb-4">
-            Need help with your tasks? Ask the AI Counsellor for guidance.
+        {/* Completion Banner */}
+        {isAllComplete && (
+          <div className="p-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-center mb-8">
+            <PartyPopper className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
+            <h3 className="font-serif text-xl font-semibold text-foreground mb-2">
+              Ready to Submit!
+            </h3>
+            <p className="text-muted-foreground text-sm max-w-md mx-auto">
+              You've completed all application tasks. Review everything and submit your applications.
+            </p>
+          </div>
+        )}
+
+        {/* AI Help CTA */}
+        <div className="text-center mb-10 p-6 border border-border/60 rounded-xl">
+          <p className="text-sm text-muted-foreground mb-4">
+            Need help with any task? Get guidance from the AI Counsellor.
           </p>
           <Button
             variant="hero"
@@ -214,91 +232,138 @@ const Application = () => {
           </Button>
         </div>
 
-        {/* Completion State */}
-        {isComplete && (
-          <div className="p-8 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 text-center mb-8">
-            <PartyPopper className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
-            <h3 className="font-serif text-xl font-semibold text-foreground mb-2">
-              Ready to Submit!
-            </h3>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              You've completed all application tasks for {lockedUniversity.name}. 
-              Review everything one more time and submit your application.
-            </p>
-          </div>
-        )}
-
-        {/* Tasks by Category */}
+        {/* Universities - Each with its own tasks */}
         <div className="space-y-6">
-          {Object.entries(tasksByCategory).map(([category, tasks]) => {
-            const categoryComplete = tasks.every(t => t.completed);
-            
-            return (
-              <div key={category} className="p-6 rounded-xl border border-border bg-card">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                    categoryComplete ? 'bg-emerald-500/10 text-emerald-500' : 'bg-muted text-muted-foreground'
-                  }`}>
-                    {categoryComplete ? <CheckCircle2 className="w-5 h-5" /> : getCategoryIcon(category)}
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-foreground">{getCategoryLabel(category)}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {tasks.filter(t => t.completed).length} of {tasks.length} completed
-                    </p>
-                  </div>
-                </div>
+          {lockedUniversities.map((university) => {
+            const uniTasks = getTasksForUniversity(university.id);
+            const completedUniTasks = uniTasks.filter(t => t.completed).length;
+            const uniProgress = uniTasks.length > 0 ? (completedUniTasks / uniTasks.length) * 100 : 0;
+            const isExpanded = expandedUniversities.has(university.id);
+            const isUniComplete = completedUniTasks === uniTasks.length && uniTasks.length > 0;
 
-                <div className="space-y-3">
-                  {tasks.map((task) => (
-                    <div 
-                      key={task.id}
-                      onClick={() => toggleTaskComplete(task.id)}
-                      className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
-                        task.completed 
-                          ? 'bg-muted/50 border-border/50' 
-                          : 'bg-background border-border hover:border-primary/30'
-                      }`}
-                    >
-                      <Checkbox 
-                        checked={task.completed}
-                        className="mt-0.5 pointer-events-none"
-                      />
-                      <div className="flex-1">
-                        <p className={`font-medium ${task.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                          {task.title}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {task.description}
-                        </p>
+            // Group tasks by category
+            const tasksByCategory = uniTasks.reduce((acc, task) => {
+              if (!acc[task.category]) {
+                acc[task.category] = [];
+              }
+              acc[task.category].push(task);
+              return acc;
+            }, {} as Record<string, typeof uniTasks>);
+
+            return (
+              <div key={university.id} className="border border-border/60 rounded-xl overflow-hidden">
+                {/* University Header */}
+                <button
+                  onClick={() => toggleExpanded(university.id)}
+                  className="w-full flex items-center justify-between p-5 hover:bg-muted/30 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      isUniComplete ? 'bg-emerald-500/10' : 'bg-primary/10'
+                    }`}>
+                      {isUniComplete ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                      ) : (
+                        <Lock className="w-5 h-5 text-primary" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-foreground">{university.name}</h3>
+                      <p className="text-sm text-muted-foreground">{university.country}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-foreground">{completedUniTasks}/{uniTasks.length}</p>
+                      <div className="w-20 h-1 bg-muted rounded-full overflow-hidden mt-1">
+                        <div 
+                          className={`h-full rounded-full transition-all ${isUniComplete ? 'bg-emerald-500' : 'bg-primary/80'}`}
+                          style={{ width: `${uniProgress}%` }}
+                        />
                       </div>
                     </div>
-                  ))}
-                </div>
+                    {isExpanded ? (
+                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Expanded Tasks */}
+                {isExpanded && (
+                  <div className="border-t border-border/40 p-5 space-y-6 bg-muted/20">
+                    {Object.entries(tasksByCategory).map(([category, tasks]) => {
+                      const categoryComplete = tasks.every(t => t.completed);
+                      
+                      return (
+                        <div key={category}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className={`${categoryComplete ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                              {categoryComplete ? <CheckCircle2 className="w-4 h-4" /> : getCategoryIcon(category)}
+                            </div>
+                            <span className="text-sm font-medium text-foreground">{getCategoryLabel(category)}</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({tasks.filter(t => t.completed).length}/{tasks.length})
+                            </span>
+                          </div>
+
+                          <div className="space-y-2 ml-6">
+                            {tasks.map((task) => (
+                              <div 
+                                key={task.id}
+                                onClick={() => toggleTaskComplete(task.id)}
+                                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                                  task.completed 
+                                    ? 'bg-muted/50 border-border/40' 
+                                    : 'bg-background border-border/60 hover:border-border'
+                                }`}
+                              >
+                                <Checkbox 
+                                  checked={task.completed}
+                                  className="mt-0.5 pointer-events-none"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-medium ${task.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                                    {task.title}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    {task.description}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       </main>
 
-      {/* Bottom Navigation */}
-      <footer className="border-t border-border bg-background/80 backdrop-blur-md">
+      {/* Footer */}
+      <footer className="border-t border-border/40 bg-background">
         <div className="max-w-4xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <button
               onClick={() => navigate('/dashboard')}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              <Home className="w-4 h-4" />
-              Return to Dashboard
+              <Home className="w-3.5 h-3.5" />
+              Dashboard
             </button>
             <Button
-              variant="hero"
+              variant="ghost"
               size="sm"
               onClick={() => navigate('/counsellor')}
+              className="text-xs"
             >
               Get AI Help
-              <ArrowRight className="w-4 h-4 ml-1" />
+              <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Button>
           </div>
         </div>
